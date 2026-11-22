@@ -220,7 +220,7 @@ export default function RankingsPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-4 py-12 text-slate-400 text-center">
-          Loading Leaderboards...
+          Loading Benchmark Leaderboard...
         </div>
       }
     >

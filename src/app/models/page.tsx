@@ -431,7 +431,7 @@ export default function ModelExplorerPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-4 py-12 text-slate-400 text-center">
-          Loading Model Explorer...
+          Loading AI Model Explorer...
         </div>
       }
     >

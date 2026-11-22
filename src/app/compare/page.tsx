@@ -346,7 +346,7 @@ export default function ComparePage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-4 py-12 text-slate-400 text-center">
-          Loading Model Comparison...
+          Loading Comparison Matrix...
         </div>
       }
     >
