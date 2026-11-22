@@ -1,0 +1,140 @@
+// ==============================================================================
+// OneAtlas - Database Schema (Prisma ORM & PostgreSQL)
+// ==============================================================================
+// Clean relational schema for AI Model Discovery and Intelligence Platform.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------------------
+// 1. Company
+// Represents AI model creators / labs (e.g., OpenAI, Anthropic, Google).
+// ------------------------------------------------------------------------------
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  website     String?
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  models      Model[]
+
+  @@map("companies")
+}
+
+// ------------------------------------------------------------------------------
+// 2. Model
+// Represents specific AI models (e.g., GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
+// ------------------------------------------------------------------------------
+model Model {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?   @db.Text
+  companyId     String
+  contextWindow Int       // Maximum context length in tokens (e.g., 128000, 1000000)
+  modelType     String    // e.g., "multimodal", "text-only", "reasoning", "code"
+  capabilities  String[]  // Stored as native PostgreSQL text array: ["text", "vision", "code", "function_calling"]
+  releaseDate   DateTime?
+  createdAt     DateTime  @default(now())
+
+  // Relationships
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  providers       ModelProvider[]
+  benchmarkScores BenchmarkScore[]
+
+  @@index([companyId])
+  @@index([modelType])
+  @@map("models")
+}
+
+// ------------------------------------------------------------------------------
+// 3. Provider
+// Represents hosting / inference infrastructure providers (e.g., Azure, AWS Bedrock, OpenRouter).
+// ------------------------------------------------------------------------------
+model Provider {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  website   String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  modelProviders ModelProvider[]
+
+  @@map("providers")
+}
+
+// ------------------------------------------------------------------------------
+// 4. ModelProvider (Junction Table)
+// Links models to providers with specific pricing and real-time availability.
+// ------------------------------------------------------------------------------
+model ModelProvider {
+  id          String   @id @default(cuid())
+  modelId     String
+  providerId  String
+  // Pricing Unit: USD per 1,000,000 (1M) input tokens. Stored as Decimal(10, 4) for high precision.
+  inputPrice  Decimal  @db.Decimal(10, 4)
+  // Pricing Unit: USD per 1,000,000 (1M) output tokens. Stored as Decimal(10, 4) for high precision.
+  outputPrice Decimal  @db.Decimal(10, 4)
+  isAvailable Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  model    Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // A model can only have one pricing/availability record per provider
+  @@unique([modelId, providerId])
+  @@index([modelId])
+  @@index([providerId])
+  @@map("model_providers")
+}
+
+// ------------------------------------------------------------------------------
+// 5. Benchmark
+// Standardized AI evaluation metrics and benchmark suites (e.g., MMLU, HumanEval, MATH).
+// ------------------------------------------------------------------------------
+model Benchmark {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  category    String   // e.g., "General Knowledge", "Coding", "Mathematics", "Reasoning"
+  description String?  @db.Text
+
+  // Relationships
+  scores      BenchmarkScore[]
+
+  @@map("benchmarks")
+}
+
+// ------------------------------------------------------------------------------
+// 6. BenchmarkScore
+// Recorded evaluation performance of a model against a specific benchmark.
+// ------------------------------------------------------------------------------
+model BenchmarkScore {
+  id          String   @id @default(cuid())
+  modelId     String
+  benchmarkId String
+  // Benchmark score percentage or standardized index (0.00 to 100.00). Stored as Decimal(6, 2).
+  score       Decimal  @db.Decimal(6, 2)
+  evaluatedAt DateTime @default(now())
+
+  // Relationships
+  model     Model     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  benchmark Benchmark @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
+
+  // Each model has a single recorded score per benchmark
+  @@unique([modelId, benchmarkId])
+  @@index([modelId])
+  @@index([benchmarkId])
+  @@map("benchmark_scores")
+}
